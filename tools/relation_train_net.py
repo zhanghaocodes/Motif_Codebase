@@ -374,7 +374,7 @@ def main():
     parser.add_argument(
         "--config-file",
         #default="configs/SHA_GCL_e2e_relation_X_101_32_8_FPN_1x.yaml",
-        default="/home/zhanghao/code/SGG/SHA_GCL_for_SGG/configs/zh_train.yaml",
+        default="/home/zhanghao/code/SGG/Motif_Codebase/configs/zh_train.yaml",
         metavar="FILE",
         help="path to config file",
         type=str,

@@ -89,7 +89,8 @@ MODEL:
       NUM_HEAD: 8
       KEY_DIM: 64
       VAL_DIM: 64
-      INNER_DIM: 2048 
+      INNER_DIM: 2048
+  MODALITY: 'S+L'   # V+S+L    V+S    S+L
 DATASETS:
   VG_TRAIN: ("VG_stanford_filtered_with_attribute_train",)
   VG_VAL: ("VG_stanford_filtered_with_attribute_val",)
@@ -111,7 +112,7 @@ SOLVER:
   VAL_PERIOD: 5000
   CHECKPOINT_PERIOD: 5000
   PRINT_GRAD_FREQ: 4000
-  IMS_PER_BATCH: 1  #zh  8
+  IMS_PER_BATCH: 8  #zh  8
   SCHEDULE:
     # the following paramters are only used for WarmupReduceLROnPlateau
     TYPE: "WarmupReduceLROnPlateau"    # WarmupMultiStepLR, WarmupReduceLROnPlateau
@@ -154,5 +155,10 @@ GLOBAL_SETTING:
     NO_RELATION_RESTRAIN: True              # If two object do not have a relation, then limit their contribution to the final loss
     ZERO_LABEL_PADDING_MODE: 'rand_insert'  # ['rand_insert', 'rand_choose', 'all_include'], to control how to insert into the relation which is ZERO
     NO_RELATION_PENALTY: 0.1
-OUTPUT_DIR: 'G:/output/sgg/output/debug'
+OUTPUT_DIR: '/home/share/zhanghao/data/image/datasets/output/Debug'
+DTYPE: 'float16'
+GLOVE_DIR: '/home/share/zhanghao/data/image/datasets/glove'
+
+
+
 #OUTPUT_DIR: 'G:/2022CVPR_models/0907_drn_Duals_mlp_add_nogateloss_DualS_noRouter_noid'

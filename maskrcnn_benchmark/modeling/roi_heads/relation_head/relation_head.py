@@ -70,7 +70,7 @@ class ROIRelationHead(torch.nn.Module):
             att_features = self.att_feature_extractor(features, proposals)
             roi_features = torch.cat((roi_features, att_features), dim=-1)
 
-        if self.use_union_box:
+        if self.use_union_box :
             union_features = self.union_feature_extractor(features, proposals, rel_pair_idxs)
         else:
             union_features = None
