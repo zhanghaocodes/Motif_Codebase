@@ -369,7 +369,7 @@ def run_test(cfg, model, distributed, logger, is_best=False):
 
 
 def main():
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    os.environ["CUDA_VISIBLE_DEVICES"] = "2"
     parser = argparse.ArgumentParser(description="PyTorch Relation Detection Training")
     parser.add_argument(
         "--config-file",

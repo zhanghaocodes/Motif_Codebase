@@ -483,8 +483,8 @@ class MotifsLikePredictor(nn.Module):
             if self.union_single_not_match:
                 prod_rep = prod_rep * self.up_dim(union_features)
             else:
-                if self.config.MODEL.MODALITY != "S+L":
-                 prod_rep = prod_rep * union_features
+
+                prod_rep = prod_rep * union_features
 
 
 
