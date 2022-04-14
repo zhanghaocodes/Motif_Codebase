@@ -90,7 +90,7 @@ MODEL:
       KEY_DIM: 64
       VAL_DIM: 64
       INNER_DIM: 2048
-  MODALITY: 'S+L'   # V+S+L    V+S    S+L
+  MODALITY: 'V+S+L'   # V+S+L    V+S    S+L
 DATASETS:
   VG_TRAIN: ("VG_stanford_filtered_with_attribute_train",)
   VG_VAL: ("VG_stanford_filtered_with_attribute_val",)

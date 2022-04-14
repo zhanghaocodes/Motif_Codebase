@@ -1,4 +1,6 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+import os
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -10,7 +12,7 @@ from maskrcnn_benchmark.modeling.box_coder import BoxCoder
 from maskrcnn_benchmark.modeling.matcher import Matcher
 from maskrcnn_benchmark.structures.boxlist_ops import boxlist_iou
 from maskrcnn_benchmark.modeling.utils import cat
-
+from torch.nn.modules.loss import _Loss
 class RelationLossComputation(object):
     """
     Computes the loss for relation triplet.
@@ -32,12 +34,12 @@ class RelationLossComputation(object):
             bbox_proposal_matcher (Matcher)
             rel_fg_bg_sampler (RelationPositiveNegativeSampler)
         """
-        self.attri_on = attri_on
-        self.num_attri_cat = num_attri_cat
-        self.max_num_attri = max_num_attri
-        self.attribute_sampling = attribute_sampling
-        self.attribute_bgfg_ratio = attribute_bgfg_ratio
-        self.use_label_smoothing = use_label_smoothing
+        self.attri_on = attri_on   #False
+        self.num_attri_cat = num_attri_cat  #201
+        self.max_num_attri = max_num_attri  #10
+        self.attribute_sampling = attribute_sampling  #True
+        self.attribute_bgfg_ratio = attribute_bgfg_ratio  #3
+        self.use_label_smoothing = use_label_smoothing   #False
         self.pred_weight = (1.0 / torch.FloatTensor([0.5,] + predicate_proportion)).cuda()
 
         if self.use_label_smoothing:
@@ -79,7 +81,7 @@ class RelationLossComputation(object):
         loss_refine_obj = self.criterion_loss(refine_obj_logits, fg_labels.long())
 
         # The following code is used to calcaulate sampled attribute loss
-        if self.attri_on:
+        if self.attri_on:  #False
             refine_att_logits = cat(refine_att_logits, dim=0)
             fg_attributes = cat([proposal.get_field("attributes") for proposal in proposals], dim=0)
 
@@ -159,7 +161,119 @@ class FocalLoss(nn.Module):
         loss = -1 * (1-pt)**self.gamma * logpt
         if self.size_average: return loss.mean()
         else: return loss.sum()
+def create_FocalLoss():
+    return FocalLoss(gamma = 2.0)
 
+class BalancedSoftmax(_Loss):
+    """
+    Balanced Softmax Loss
+    """
+    def __init__(self, freq):
+        super(BalancedSoftmax, self).__init__()
+
+        self.sample_per_class = freq
+
+    def forward(self, input, label, reduction='mean'):
+        return balanced_softmax_loss(label, input, self.sample_per_class, reduction)
+
+def ib_loss(input_values, ib):
+    """Computes the focal loss"""
+    loss = input_values * ib
+    return loss.mean()
+class IBLoss(nn.Module):
+    def __init__(self, weight=None,num_classes=0, alpha=10000.):
+        super(IBLoss, self).__init__()
+        assert alpha > 0
+        self.alpha = alpha
+        self.epsilon = 0.001
+        self.weight = weight
+        self.num_classes=num_classes
+    def forward(self, input, target, features):
+
+        grads = torch.sum(torch.abs(F.softmax(input, dim=1) - F.one_hot(target, self.num_classes)),1) # N * 1
+        features=torch.sum(torch.abs(features), 1).reshape(-1, 1)
+        ib = grads*features.reshape(-1)
+        ib = self.alpha / (ib + self.epsilon)
+        return ib_loss(F.cross_entropy(input, target, reduction='none', weight=self.weight), ib)
+
+def balanced_softmax_loss(labels, logits, sample_per_class, reduction):
+    """Compute the Balanced Softmax Loss between `logits` and the ground truth `labels`.
+    Args:
+      labels: A int tensor of size [batch].
+      logits: A float tensor of size [batch, no_of_classes].
+      sample_per_class: A int tensor of size [no of classes].
+      reduction: string. One of "none", "mean", "sum"
+    Returns:
+      loss: A float tensor. Balanced Softmax Loss.
+    """
+    spc = sample_per_class.type_as(logits)
+    spc = spc.unsqueeze(0).expand(logits.shape[0], -1)
+    logits = logits + spc.log()
+    loss = F.cross_entropy(input=logits, target=labels, reduction=reduction)
+    return loss
+
+def create_CBLoss():
+    cls_num_list = [118037, 69007, 48582, 32770, 24470, 20759, 13047, 12215, 11482, 8411, 5355, 4939, 4732, 4507, 3808, 2496, 2109, 1705, 1586, 1322, 1277, 1116, 1026, 907, 807, 779, 702, 679, 652, 641, 580, 512, 511, 493, 485, 435, 369, 343, 327, 289, 265, 263, 224, 198, 172, 153, 134, 128, 49, 5]
+
+
+    beta = 0.9999
+    effective_num = 1.0 - np.power(beta, cls_num_list)
+    per_cls_weights = (1.0 - beta) / np.array(effective_num)
+    per_cls_weights = per_cls_weights / np.sum(per_cls_weights) * len(cls_num_list)
+
+    per_cls_weights = per_cls_weights.tolist()
+    per_cls_weights.insert(0, 0)
+
+    per_cls_weights = torch.FloatTensor(per_cls_weights)
+    result_str ="The Loss is [ CDLoss ]"
+    result_str += ('\n   Weight is {}'.format(per_cls_weights))
+    with open(('/home/share/zhanghao/data/image/datasets/output/LossInfo.txt'), 'w') as outfile:
+        outfile.write(result_str)
+    print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
+
+    return nn.CrossEntropyLoss(weight=per_cls_weights)
+
+def create_BalancedSoftmax():
+    cls_num_list = [118037, 69007, 48582, 32770, 24470, 20759, 13047, 12215, 11482, 8411, 5355, 4939, 4732, 4507, 3808,
+                    2496, 2109, 1705, 1586, 1322, 1277, 1116, 1026, 907, 807, 779, 702, 679, 652, 641, 580, 512, 511,
+                    493, 485, 435, 369, 343, 327, 289, 265, 263, 224, 198, 172, 153, 134, 128, 49, 5]
+    freq = torch.Tensor(cls_num_list)
+    return BalancedSoftmax(freq)
+
+class SeesawLoss(nn.Module):
+    def __init__(self, p: float = 0.8):
+        super().__init__()
+        dist = [118037, 69007, 48582, 32770, 24470, 20759, 13047, 12215, 11482, 8411, 5355, 4939, 4732, 4507, 3808, 2496, 2109, 1705, 1586, 1322, 1277, 1116, 1026, 907, 807, 779, 702, 679, 652, 641, 580, 512, 511, 493, 485, 435, 369, 343, 327, 289, 265, 263, 224, 198, 172, 153, 134, 128, 49, 5]
+
+        class_counts = torch.FloatTensor(dist)
+        conditions = class_counts[:, None] > class_counts[None, :]
+        trues = (class_counts[None, :] / class_counts[:, None]) ** p
+        print(trues.dtype)
+        falses = torch.ones(len(class_counts), len(class_counts))
+        self.s = torch.where(conditions, trues, falses)
+        self.num_labels = len(class_counts)
+        self.eps = 1.0e-6
+
+    def forward(self, logits, targets):
+        targets = F.one_hot(targets, self.num_labels)
+        self.s = self.s.to(targets.device)
+        max_element, _ = logits.max(axis=-1)
+        logits = logits - max_element[:, None]  # to prevent overflow
+
+        numerator = torch.exp(logits)
+        denominator = (
+                              (1 - targets)[:, None, :]
+                              * self.s[None, :, :]
+                              * torch.exp(logits)[:, None, :]).sum(axis=-1) \
+                      + torch.exp(logits)
+
+        sigma = numerator / (denominator + self.eps)
+        loss = (- targets * torch.log(sigma + self.eps)).sum(-1)
+        return loss.mean()
+
+
+def create_SeesawLoss():
+    return SeesawLoss()
 
 
 def make_roi_relation_loss_evaluator(cfg):
@@ -175,3 +289,6 @@ def make_roi_relation_loss_evaluator(cfg):
     )
 
     return loss_evaluator
+
+def choose_rel_loss():
+    return create_CBLoss()

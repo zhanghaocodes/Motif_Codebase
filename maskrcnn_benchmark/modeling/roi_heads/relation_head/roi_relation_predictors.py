@@ -388,6 +388,8 @@ class TransLike_GCL(nn.Module):
                         exit('wrong num in multi_bias')
         return freq_bias_all
 
+from .loss import make_roi_relation_loss_evaluator, create_CBLoss, choose_rel_loss
+
 
 @registry.ROI_RELATION_PREDICTOR.register("MotifsLikePredictor")
 class MotifsLikePredictor(nn.Module):
@@ -442,6 +444,7 @@ class MotifsLikePredictor(nn.Module):
             # convey statistics into FrequencyBias to avoid loading again
             self.freq_bias = FrequencyBias(config, statistics)
         self.criterion_loss = nn.CrossEntropyLoss()
+        self.criterion_rel_loss = choose_rel_loss()
 
     def forward(self, proposals, rel_pair_idxs, rel_labels, rel_binarys, roi_features, union_features, logger=None):
         """
@@ -496,12 +499,13 @@ class MotifsLikePredictor(nn.Module):
         add_losses = {}
 
         if self.training:
-            if not self.config.MODEL.ROI_RELATION_HEAD.USE_GT_OBJECT_LABEL:
+            if not self.config.MODEL.ROI_RELATION_HEAD.USE_GT_OBJECT_LABEL:  #No Run
                 fg_labels = cat([proposal.get_field("labels") for proposal in proposals], dim=0)
                 loss_refine_obj = self.criterion_loss(obj_dists, fg_labels.long())
                 add_losses['obj_loss'] = loss_refine_obj
             rel_labels = cat(rel_labels, dim=0)
-            add_losses['rel_loss'] = self.criterion_loss(rel_dists, rel_labels)
+            add_losses['rel_loss'] = self.criterion_rel_loss(rel_dists, rel_labels)
+
             return None, None, add_losses
         else:
             obj_dists = obj_dists.split(num_objs, dim=0)

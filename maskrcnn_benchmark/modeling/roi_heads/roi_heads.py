@@ -62,7 +62,7 @@ class CombinedROIHeads(torch.nn.ModuleDict):
             x, detections, loss_keypoint = self.keypoint(keypoint_features, detections, targets)
             losses.update(loss_keypoint)
 
-        if self.cfg.MODEL.RELATION_ON:
+        if self.cfg.MODEL.RELATION_ON:  #True
             # it may be not safe to share features due to post processing
             # During training, self.box() will return the unaltered proposals as "detections"
             # this makes the API consistent during training and testing
