@@ -36,7 +36,7 @@ class RelationFeatureExtractor(nn.Module):
 
         # separete spatial
         self.separate_spatial = self.cfg.MODEL.ROI_RELATION_HEAD.CAUSAL.SEPARATE_SPATIAL
-        if self.separate_spatial:
+        if self.separate_spatial or self.cfg.MODEL.MODALITY == 'S+L':
             input_size = self.feature_extractor.resize_channels
             out_dim = self.feature_extractor.out_channels
             self.spatial_fc = nn.Sequential(*[make_fc(input_size, out_dim//2), nn.ReLU(inplace=True),
@@ -99,7 +99,9 @@ class RelationFeatureExtractor(nn.Module):
         else:
             union_features = union_vis_features + rect_features
             union_features = self.feature_extractor.forward_without_pool(union_features) # (total_num_rel, out_channels)
-
+        if self.cfg.MODEL.MODALITY == 'S+L':
+            spatial_features = self.spatial_fc(rect_features.view(rect_features.size(0), -1))
+            union_features = spatial_features
         if self.cfg.MODEL.ATTRIBUTE_ON:
             union_att_features = self.att_feature_extractor.pooler(x, union_proposals)
             union_features_att = union_att_features + rect_features

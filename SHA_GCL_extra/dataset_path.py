@@ -1,1 +1,1 @@
-datasets_path = '/home/share/dongxingning/'
+datasets_path = '/home/share/zhanghao/data/image/'

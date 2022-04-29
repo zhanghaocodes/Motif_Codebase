@@ -89,7 +89,8 @@ MODEL:
       NUM_HEAD: 8
       KEY_DIM: 64
       VAL_DIM: 64
-      INNER_DIM: 2048 
+      INNER_DIM: 2048
+  MODALITY: 'V+S+L'
 DATASETS:
   VG_TRAIN: ("VG_stanford_filtered_with_attribute_train",)
   VG_VAL: ("VG_stanford_filtered_with_attribute_val",)
@@ -154,5 +155,6 @@ GLOBAL_SETTING:
     NO_RELATION_RESTRAIN: True              # If two object do not have a relation, then limit their contribution to the final loss
     ZERO_LABEL_PADDING_MODE: 'rand_insert'  # ['rand_insert', 'rand_choose', 'all_include'], to control how to insert into the relation which is ZERO
     NO_RELATION_PENALTY: 0.1
-OUTPUT_DIR: 'G:/output/sgg/output/newtest'
+OUTPUT_DIR: '/home/share/zhanghao/data/image/classification/output/SHA_GCL_VG_PredCls_test'
+GLOVE_DIR: '/home/share/zhanghao/data/image/classification/glove'
 #OUTPUT_DIR: 'G:/2022CVPR_models/0907_drn_Duals_mlp_add_nogateloss_DualS_noRouter_noid'

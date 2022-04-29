@@ -250,40 +250,61 @@ class LSTMContext(nn.Module):
 
         # TODO Kaihua Tang
         # AlternatingHighwayLSTM is invalid for pytorch 1.0
-        # self.obj_ctx_rnn = torch.nn.LSTM(
-        #         input_size=self.obj_dim+self.embed_dim + 128,
-        #         hidden_size=self.hidden_dim,
-        #         num_layers=self.nl_obj,
-        #         dropout=self.dropout_rate if self.nl_obj > 1 else 0,
-        #         bidirectional=True)
-        # self.decoder_rnn = DecoderRNN(self.cfg, self.obj_classes, embed_dim=self.embed_dim,
-        #         inputs_dim=self.hidden_dim + self.obj_dim + self.embed_dim + 128,
-        #         hidden_dim=self.hidden_dim,
-        #         rnn_drop=self.dropout_rate)
-        # self.edge_ctx_rnn = torch.nn.LSTM(
-        #         input_size=self.embed_dim + self.hidden_dim + self.obj_dim,
-        #         hidden_size=self.hidden_dim,
-        #         num_layers=self.nl_edge,
-        #         dropout=self.dropout_rate if self.nl_edge > 1 else 0,
-        #         bidirectional=True)
-        # # map bidirectional hidden states of dimension self.hidden_dim*2 to self.hidden_dim
+        if self.cfg.MODEL.MODALITY == 'V+S+L':
 
-        self.obj_ctx_rnn = torch.nn.LSTM(
-            input_size=self.obj_dim  + 128,
-            hidden_size=self.hidden_dim,
-            num_layers=self.nl_obj,
-            dropout=self.dropout_rate if self.nl_obj > 1 else 0,
-            bidirectional=True)
-        self.decoder_rnn = DecoderRNN(self.cfg, self.obj_classes, embed_dim=self.embed_dim,
-                                      inputs_dim=self.hidden_dim  + 128,
-                                      hidden_dim=self.hidden_dim,
-                                      rnn_drop=self.dropout_rate)
-        self.edge_ctx_rnn = torch.nn.LSTM(
-            input_size= self.embed_dim+self.hidden_dim + self.obj_dim,
-            hidden_size=self.hidden_dim,
-            num_layers=self.nl_edge,
-            dropout=self.dropout_rate if self.nl_edge > 1 else 0,
-            bidirectional=True)
+            self.obj_ctx_rnn = torch.nn.LSTM(
+                    input_size=self.obj_dim+self.embed_dim + 128,
+                    hidden_size=self.hidden_dim,
+                    num_layers=self.nl_obj,
+                    dropout=self.dropout_rate if self.nl_obj > 1 else 0,
+                    bidirectional=True)
+            self.decoder_rnn = DecoderRNN(self.cfg, self.obj_classes, embed_dim=self.embed_dim,
+                    inputs_dim=self.hidden_dim + self.obj_dim + self.embed_dim + 128,
+                    hidden_dim=self.hidden_dim,
+                    rnn_drop=self.dropout_rate)
+            self.edge_ctx_rnn = torch.nn.LSTM(
+                input_size=self.embed_dim + self.hidden_dim + self.obj_dim,
+                hidden_size=self.hidden_dim,
+                num_layers=self.nl_edge,
+                dropout=self.dropout_rate if self.nl_edge > 1 else 0,
+                bidirectional=True)
+
+            # map bidirectional hidden states of dimension self.hidden_dim*2 to self.hidden_dim
+        elif self.cfg.MODEL.MODALITY == 'V+S':
+            self.obj_ctx_rnn = torch.nn.LSTM(
+                input_size=self.obj_dim  + 128,
+                hidden_size=self.hidden_dim,
+                num_layers=self.nl_obj,
+                dropout=self.dropout_rate if self.nl_obj > 1 else 0,
+                bidirectional=True)
+            self.decoder_rnn = DecoderRNN(self.cfg, self.obj_classes, embed_dim=self.embed_dim,
+                                          inputs_dim=self.hidden_dim  + 128,
+                                          hidden_dim=self.hidden_dim,
+                                          rnn_drop=self.dropout_rate)
+            self.edge_ctx_rnn = torch.nn.LSTM(
+                input_size=self.embed_dim + self.hidden_dim + self.obj_dim,
+                hidden_size=self.hidden_dim,
+                num_layers=self.nl_edge,
+                dropout=self.dropout_rate if self.nl_edge > 1 else 0,
+                bidirectional=True)
+        else:   #S+L
+            self.obj_ctx_rnn = torch.nn.LSTM(
+                input_size=self.embed_dim + 128,
+                hidden_size=self.hidden_dim,
+                num_layers=self.nl_obj,
+                dropout=self.dropout_rate if self.nl_obj > 1 else 0,
+                bidirectional=True)
+            self.decoder_rnn = DecoderRNN(self.cfg, self.obj_classes, embed_dim=self.embed_dim,
+                                          inputs_dim=self.hidden_dim  + self.embed_dim + 128,
+                                          hidden_dim=self.hidden_dim,
+                                          rnn_drop=self.dropout_rate)
+            self.edge_ctx_rnn = torch.nn.LSTM(
+                input_size=self.embed_dim + self.hidden_dim ,
+                hidden_size=self.hidden_dim,
+                num_layers=self.nl_edge,
+                dropout=self.dropout_rate if self.nl_edge > 1 else 0,
+                bidirectional=True)
+
         # map bidirectional hidden states of dimension self.hidden_dim*2 to self.hidden_dim
         self.lin_obj_h = nn.Linear(self.hidden_dim*2, self.hidden_dim)
         self.lin_edge_h = nn.Linear(self.hidden_dim*2, self.hidden_dim)
@@ -293,13 +314,26 @@ class LSTMContext(nn.Module):
         self.effect_analysis = config.MODEL.ROI_RELATION_HEAD.CAUSAL.EFFECT_ANALYSIS
 
         if self.effect_analysis:
-            # self.register_buffer("untreated_dcd_feat", torch.zeros(self.hidden_dim + self.obj_dim + self.embed_dim + 128))
-            # self.register_buffer("untreated_obj_feat", torch.zeros(self.obj_dim+self.embed_dim + 128))
-            # self.register_buffer("untreated_edg_feat", torch.zeros(self.embed_dim + self.obj_dim))
+            if self.cfg.MODEL.MODALITY == 'V+S+L':
+                self.register_buffer("untreated_dcd_feat", torch.zeros(self.hidden_dim + self.obj_dim + self.embed_dim + 128))
+                self.register_buffer("untreated_obj_feat", torch.zeros(self.obj_dim+self.embed_dim + 128))
+                self.register_buffer("untreated_edg_feat", torch.zeros(self.embed_dim + self.obj_dim))
+            elif self.cfg.MODEL.MODALITY == 'V+S':
+                self.register_buffer("untreated_dcd_feat",torch.zeros(self.hidden_dim + self.obj_dim  + 128))
+                self.register_buffer("untreated_obj_feat", torch.zeros(self.obj_dim  + 128))
+                self.register_buffer("untreated_edg_feat", torch.zeros(self.embed_dim + self.obj_dim))
+            else:
+                self.register_buffer("untreated_dcd_feat", torch.zeros(self.hidden_dim ))
+                self.register_buffer("untreated_obj_feat", torch.zeros( self.embed_dim+ 128))
+                self.register_buffer("untreated_edg_feat", torch.zeros(self.embed_dim ))
 
-            self.register_buffer("untreated_dcd_feat",torch.zeros(self.hidden_dim + self.obj_dim  + 128))
-            self.register_buffer("untreated_obj_feat", torch.zeros(self.obj_dim  + 128))
-            self.register_buffer("untreated_edg_feat", torch.zeros(self.embed_dim+ self.obj_dim))
+        self.FusionLayer = nn.Sequential(
+            nn.Linear(4424, 2212),
+            nn.LayerNorm(2212, eps=0, elementwise_affine=True),
+            nn.ReLU(True),
+            nn.Linear(2212, 4424),
+
+        )
 
     def sort_rois(self, proposals):
         c_x = center_x(proposals)
@@ -324,7 +358,7 @@ class LSTMContext(nn.Module):
         obj_inp_rep = obj_feats[perm].contiguous()
         input_packed = PackedSequence(obj_inp_rep, ls_transposed)
         encoder_rep = self.obj_ctx_rnn(input_packed)[0][0]
-        encoder_rep = self.lin_obj_h(encoder_rep) # map to hidden_dim
+        encoder_rep = self.lin_obj_h(encoder_rep) # map to hidden_dim  512
 
         # untreated decoder input
         batch_size = encoder_rep.shape[0]
@@ -332,7 +366,10 @@ class LSTMContext(nn.Module):
         if (not self.training) and self.effect_analysis and ctx_average:
             decoder_inp = self.untreated_dcd_feat.view(1, -1).expand(batch_size, -1)
         else:
-            decoder_inp = torch.cat((obj_inp_rep, encoder_rep), 1)
+            if self.cfg.MODEL.MODALITY != 'S+L':
+             decoder_inp = torch.cat((obj_inp_rep, encoder_rep), 1)
+            else:
+             decoder_inp = encoder_rep
 
         if self.training and self.effect_analysis:
             self.untreated_dcd_feat = self.moving_average(self.untreated_dcd_feat, decoder_inp)
@@ -394,8 +431,13 @@ class LSTMContext(nn.Module):
         if all_average and self.effect_analysis and (not self.training):
             obj_pre_rep = self.untreated_obj_feat.view(1, -1).expand(batch_size, -1)
         else:
-            #obj_pre_rep = cat((x, obj_embed, pos_embed), -1)
-            obj_pre_rep = cat((x,pos_embed), -1)
+            if self.cfg.MODEL.MODALITY == 'V+S+L':
+             obj_pre_rep = cat((x, obj_embed, pos_embed), -1)
+           #  obj_pre_rep = self.FusionLayer(obj_pre_rep)
+            elif self.cfg.MODEL.MODALITY == 'V+S':
+             obj_pre_rep = cat((x,pos_embed), -1)
+            else:
+             obj_pre_rep = cat((obj_embed, pos_embed), -1)
 
         boxes_per_cls = None
         if self.mode == 'sgdet' and not self.training:
@@ -409,13 +451,18 @@ class LSTMContext(nn.Module):
         if (all_average or ctx_average) and self.effect_analysis and (not self.training):
             obj_rel_rep = cat((self.untreated_edg_feat.view(1, -1).expand(batch_size, -1), obj_ctx), dim=-1)
         else:
-            obj_rel_rep = cat((obj_embed2, x, obj_ctx), -1)
-            
+            if self.cfg.MODEL.MODALITY == "S+L":
+             obj_rel_rep = cat((obj_embed2,obj_ctx), -1)
+            else:
+             obj_rel_rep = cat((obj_embed2, x, obj_ctx), -1)
         edge_ctx = self.edge_ctx(obj_rel_rep, perm=perm, inv_perm=inv_perm, ls_transposed=ls_transposed)
 
         # memorize average feature
         if self.training and self.effect_analysis:
             self.untreated_obj_feat = self.moving_average(self.untreated_obj_feat, obj_pre_rep)
-            self.untreated_edg_feat = self.moving_average(self.untreated_edg_feat, cat((obj_embed2, x), -1))
+            if self.cfg.MODEL.MODALITY == 'S+L':
+              self.untreated_edg_feat = self.moving_average(self.untreated_edg_feat, obj_embed2)
+            else:
+              self.untreated_edg_feat = self.moving_average(self.untreated_edg_feat, cat((obj_embed2, x), -1))
 
         return obj_dists, obj_preds, edge_ctx, None

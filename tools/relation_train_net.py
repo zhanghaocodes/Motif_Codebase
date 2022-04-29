@@ -6,7 +6,7 @@ Basic training script for PyTorch
 # Set up custom environment before nearly anything else is imported
 # NOTE: this should be the first import (no not reorder)
 import sys
-sys.path.append(r"/home/zhanghao/code/SGG/SHA_GCL_for_SGG")
+sys.path.append(r"/home/share/zhanghao/codes/Motif_Codebase")
 from maskrcnn_benchmark.utils.env import setup_environment  # noqa F401 isort:skip
 
 import argparse
@@ -33,13 +33,14 @@ from maskrcnn_benchmark.utils.logger import setup_logger, debug_print
 from maskrcnn_benchmark.utils.miscellaneous import mkdir, save_config
 from maskrcnn_benchmark.utils.metric_logger import MetricLogger
 
-
+# from maskrcnn_benchmark.modeling.roi_heads.relation_head.roi_relation_predictors import resampleFlag
 # See if we can use apex.DistributedDataParallel instead of the torch default,
 # and enable mixed-precision via apex.amp
 try:
     from apex import amp
 except ImportError:
     raise ImportError('Use APEX for multi-precision via apex.amp')
+
 
 
 def train(cfg, local_rank, distributed, logger):
@@ -151,6 +152,7 @@ def train(cfg, local_rank, distributed, logger):
 
     print_first_grad = True
     for iteration, (images, targets, _) in enumerate(train_data_loader, start_iter):
+
         if any(len(target) < 1 for target in targets):
             logger.error(f"Iteration={iteration + 1} || Image Ids used for training {_} || targets Length={[len(target) for target in targets]}" )
         data_time = time.time() - end
@@ -165,7 +167,9 @@ def train(cfg, local_rank, distributed, logger):
 
         loss_dict = model(images, targets)
 
+
         losses = sum(loss for loss in loss_dict.values())
+
 
         # reduce losses over all GPUs for logging purposes
         loss_dict_reduced = reduce_loss_dict(loss_dict)
@@ -369,12 +373,13 @@ def run_test(cfg, model, distributed, logger, is_best=False):
 
 
 def main():
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+
+    os.environ["CUDA_VISIBLE_DEVICES"] = "2"
     parser = argparse.ArgumentParser(description="PyTorch Relation Detection Training")
     parser.add_argument(
         "--config-file",
         #default="configs/SHA_GCL_e2e_relation_X_101_32_8_FPN_1x.yaml",
-        default="/home/zhanghao/code/SGG/SHA_GCL_for_SGG/configs/zh_train.yaml",
+        default="/home/share/zhanghao/codes/Motif_Codebase/configs/zh_train.yaml",
         metavar="FILE",
         help="path to config file",
         type=str,

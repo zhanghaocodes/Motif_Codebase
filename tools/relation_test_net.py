@@ -27,10 +27,11 @@ except ImportError:
 
 
 def main():
+    os.environ["CUDA_VISIBLE_DEVICES"] = "3"
     parser = argparse.ArgumentParser(description="PyTorch Object Detection Inference")
     parser.add_argument(
         "--config-file",
-        default="configs/SHA_GCL_e2e_relation_X_101_32_8_FPN_1x",
+        default="/home/zhanghao/code/SGG/Motif_Codebase/configs/zh_train.yaml",
         metavar="FILE",
         help="path to config file",
     )
@@ -103,6 +104,7 @@ def main():
             mkdir(output_folder)
             output_folders[idx] = output_folder
     data_loaders_val = make_data_loader(cfg, mode="test", is_distributed=distributed)
+
     for output_folder, dataset_name, data_loader_val in zip(output_folders, dataset_names, data_loaders_val):
         inference(
             cfg,
