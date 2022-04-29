@@ -112,7 +112,7 @@ SOLVER:
   VAL_PERIOD: 5000
   CHECKPOINT_PERIOD: 5000
   PRINT_GRAD_FREQ: 4000
-  IMS_PER_BATCH: 8  #zh  8
+  IMS_PER_BATCH: 8
   SCHEDULE:
     # the following paramters are only used for WarmupReduceLROnPlateau
     TYPE: "WarmupReduceLROnPlateau"    # WarmupMultiStepLR, WarmupReduceLROnPlateau
@@ -132,10 +132,11 @@ TEST:
   IMS_PER_BATCH: 8
 GLOBAL_SETTING:
   ############### Parameters for Basic Encoder in Predictor ##############
-  RELATION_PREDICTOR: "MotifsLikePredictor"
+  RELATION_PREDICTOR: "MotifsLikePredictor_Resample"
+#  RELATION_PREDICTOR: "MotifsLikePredictor"
   #RELATION_PREDICTOR: "VCTreePredictor"
   #RELATION_PREDICTOR: "TransLikePredictor"
-  #RELATION_PREDICTOR: "MotifsLike_GCL"
+#  RELATION_PREDICTOR: "MotifsLike_GCL"
   #RELATION_PREDICTOR: "VCTree_GCL"
   #RELATION_PREDICTOR: "TransLike_GCL"
   BASIC_ENCODER: 'Motifs'

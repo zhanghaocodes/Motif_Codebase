@@ -326,6 +326,15 @@ class LSTMContext(nn.Module):
                 self.register_buffer("untreated_dcd_feat", torch.zeros(self.hidden_dim ))
                 self.register_buffer("untreated_obj_feat", torch.zeros( self.embed_dim+ 128))
                 self.register_buffer("untreated_edg_feat", torch.zeros(self.embed_dim ))
+
+        self.FusionLayer = nn.Sequential(
+            nn.Linear(4424, 2212),
+            nn.LayerNorm(2212, eps=0, elementwise_affine=True),
+            nn.ReLU(True),
+            nn.Linear(2212, 4424),
+
+        )
+
     def sort_rois(self, proposals):
         c_x = center_x(proposals)
         # leftright order
@@ -424,6 +433,7 @@ class LSTMContext(nn.Module):
         else:
             if self.cfg.MODEL.MODALITY == 'V+S+L':
              obj_pre_rep = cat((x, obj_embed, pos_embed), -1)
+           #  obj_pre_rep = self.FusionLayer(obj_pre_rep)
             elif self.cfg.MODEL.MODALITY == 'V+S':
              obj_pre_rep = cat((x,pos_embed), -1)
             else:

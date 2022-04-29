@@ -1,4 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved.
+import math
 import os
 
 import torch
@@ -142,7 +143,7 @@ class RelationLossComputation(object):
 
 
 class FocalLoss(nn.Module):
-    def __init__(self, gamma=0, alpha=None, size_average=True):
+    def __init__(self, gamma=2.0, alpha=0.25, size_average=True):
         super(FocalLoss, self).__init__()
         self.gamma = gamma
         self.alpha = alpha
@@ -158,11 +159,16 @@ class FocalLoss(nn.Module):
 
         logpt = logpt * self.alpha * (target > 0).float() + logpt * (1 - self.alpha) * (target <= 0).float()
 
-        loss = -1 * (1-pt)**self.gamma * logpt
+        loss =  -1 * (1-pt)**self.gamma* logpt
         if self.size_average: return loss.mean()
         else: return loss.sum()
 def create_FocalLoss():
+    print("Focal Loss is used by HAO @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
     return FocalLoss(gamma = 2.0)
+
+
+
+
 
 class BalancedSoftmax(_Loss):
     """
@@ -173,8 +179,34 @@ class BalancedSoftmax(_Loss):
 
         self.sample_per_class = freq
 
-    def forward(self, input, label, reduction='mean'):
+    def forward(self, input, label, reduction='sum'):
         return balanced_softmax_loss(label, input, self.sample_per_class, reduction)
+def balanced_softmax_loss(labels, logits, sample_per_class, reduction):
+    """Compute the Balanced Softmax Loss between `logits` and the ground truth `labels`.
+    Args:
+      labels: A int tensor of size [batch].
+      logits: A float tensor of size [batch, no_of_classes].
+      sample_per_class: A int tensor of size [no of classes].
+      reduction: string. One of "none", "mean", "sum"
+    Returns:
+      loss: A float tensor. Balanced Softmax Loss.
+    """
+    spc = sample_per_class.type_as(logits)
+    spc = spc.unsqueeze(0).expand(logits.shape[0], -1)
+    logits = logits + spc.log()
+    loss = F.cross_entropy(input=logits, target=labels, reduction=reduction)
+    return loss
+def create_BalancedSoftmax():
+    cls_num_list = [118037,118037, 69007, 48582, 32770, 24470, 20759, 13047, 12215, 11482, 8411, 5355, 4939, 4732, 4507, 3808,
+                    2496, 2109, 1705, 1586, 1322, 1277, 1116, 1026, 907, 807, 779, 702, 679, 652, 641, 580, 512, 511,
+                    493, 485, 435, 369, 343, 327, 289, 265, 263, 224, 198, 172, 153, 134, 128, 49, 5]
+    freq = torch.Tensor(cls_num_list)
+
+    return BalancedSoftmax(freq)
+
+
+
+
 
 def ib_loss(input_values, ib):
     """Computes the focal loss"""
@@ -196,54 +228,36 @@ class IBLoss(nn.Module):
         ib = self.alpha / (ib + self.epsilon)
         return ib_loss(F.cross_entropy(input, target, reduction='none', weight=self.weight), ib)
 
-def balanced_softmax_loss(labels, logits, sample_per_class, reduction):
-    """Compute the Balanced Softmax Loss between `logits` and the ground truth `labels`.
-    Args:
-      labels: A int tensor of size [batch].
-      logits: A float tensor of size [batch, no_of_classes].
-      sample_per_class: A int tensor of size [no of classes].
-      reduction: string. One of "none", "mean", "sum"
-    Returns:
-      loss: A float tensor. Balanced Softmax Loss.
-    """
-    spc = sample_per_class.type_as(logits)
-    spc = spc.unsqueeze(0).expand(logits.shape[0], -1)
-    logits = logits + spc.log()
-    loss = F.cross_entropy(input=logits, target=labels, reduction=reduction)
-    return loss
+
 
 def create_CBLoss():
-    cls_num_list = [118037, 69007, 48582, 32770, 24470, 20759, 13047, 12215, 11482, 8411, 5355, 4939, 4732, 4507, 3808, 2496, 2109, 1705, 1586, 1322, 1277, 1116, 1026, 907, 807, 779, 702, 679, 652, 641, 580, 512, 511, 493, 485, 435, 369, 343, 327, 289, 265, 263, 224, 198, 172, 153, 134, 128, 49, 5]
+    cls_num_list = [118037,118037, 69007, 48582, 32770, 24470, 20759, 13047, 12215, 11482, 8411, 5355, 4939, 4732, 4507, 3808, 2496, 2109, 1705, 1586, 1322, 1277, 1116, 1026, 907, 807, 779, 702, 679, 652, 641, 580, 512, 511, 493, 485, 435, 369, 343, 327, 289, 265, 263, 224, 198, 172, 153, 134, 128, 49, 5]
 
 
+    # beta = 0.9999
     beta = 0.9999
     effective_num = 1.0 - np.power(beta, cls_num_list)
     per_cls_weights = (1.0 - beta) / np.array(effective_num)
     per_cls_weights = per_cls_weights / np.sum(per_cls_weights) * len(cls_num_list)
 
     per_cls_weights = per_cls_weights.tolist()
-    per_cls_weights.insert(0, 0)
+
 
     per_cls_weights = torch.FloatTensor(per_cls_weights)
-    result_str ="The Loss is [ CDLoss ]"
+    result_str ="The Loss is [ CBLoss ]"
     result_str += ('\n   Weight is {}'.format(per_cls_weights))
     with open(('/home/share/zhanghao/data/image/datasets/output/LossInfo.txt'), 'w') as outfile:
         outfile.write(result_str)
-    print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
+    print("CBLoss is over @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
 
-    return nn.CrossEntropyLoss(weight=per_cls_weights)
+    return nn.CrossEntropyLoss(weight=per_cls_weights,reduction='sum')
 
-def create_BalancedSoftmax():
-    cls_num_list = [118037, 69007, 48582, 32770, 24470, 20759, 13047, 12215, 11482, 8411, 5355, 4939, 4732, 4507, 3808,
-                    2496, 2109, 1705, 1586, 1322, 1277, 1116, 1026, 907, 807, 779, 702, 679, 652, 641, 580, 512, 511,
-                    493, 485, 435, 369, 343, 327, 289, 265, 263, 224, 198, 172, 153, 134, 128, 49, 5]
-    freq = torch.Tensor(cls_num_list)
-    return BalancedSoftmax(freq)
+
 
 class SeesawLoss(nn.Module):
     def __init__(self, p: float = 0.8):
         super().__init__()
-        dist = [118037, 69007, 48582, 32770, 24470, 20759, 13047, 12215, 11482, 8411, 5355, 4939, 4732, 4507, 3808, 2496, 2109, 1705, 1586, 1322, 1277, 1116, 1026, 907, 807, 779, 702, 679, 652, 641, 580, 512, 511, 493, 485, 435, 369, 343, 327, 289, 265, 263, 224, 198, 172, 153, 134, 128, 49, 5]
+        dist = [118037,118037, 69007, 48582, 32770, 24470, 20759, 13047, 12215, 11482, 8411, 5355, 4939, 4732, 4507, 3808, 2496, 2109, 1705, 1586, 1322, 1277, 1116, 1026, 907, 807, 779, 702, 679, 652, 641, 580, 512, 511, 493, 485, 435, 369, 343, 327, 289, 265, 263, 224, 198, 172, 153, 134, 128, 49, 5]
 
         class_counts = torch.FloatTensor(dist)
         conditions = class_counts[:, None] > class_counts[None, :]
@@ -273,6 +287,7 @@ class SeesawLoss(nn.Module):
 
 
 def create_SeesawLoss():
+    print("SeesawLoss is used by HAO @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@")
     return SeesawLoss()
 
 
@@ -290,5 +305,77 @@ def make_roi_relation_loss_evaluator(cfg):
 
     return loss_evaluator
 
+
+def create_WeightedSoftmaxLoss():
+    cls_num_list = [118037,118037, 69007, 48582, 32770, 24470, 20759, 13047, 12215, 11482, 8411, 5355, 4939, 4732, 4507, 3808, 2496, 2109, 1705, 1586, 1322, 1277, 1116, 1026, 907, 807, 779, 702, 679, 652, 641, 580, 512, 511, 493, 485, 435, 369, 343, 327, 289, 265, 263, 224, 198, 172, 153, 134, 128, 49, 5]
+
+
+    per_cls_weights = []
+    for i in range(len(cls_num_list)):
+        if (cls_num_list[i] > 8000):
+            per_cls_weights.append((1 / cls_num_list[i]))
+        elif (cls_num_list[i] > 3000):
+            per_cls_weights.append((10 / cls_num_list[i]))
+        elif (cls_num_list[i] > 1000):
+            per_cls_weights.append((100 / cls_num_list[i]))
+        else:
+            per_cls_weights.append((200 / cls_num_list[i]))
+
+
+
+    per_cls_weights = torch.FloatTensor(per_cls_weights)
+
+
+    return nn.CrossEntropyLoss(weight=per_cls_weights,reduction='sum')
+
+
+
+class CE(nn.Module):
+    def __init__(self, weight=None):
+        super(CE, self).__init__()
+
+        self.lossfun = nn.CrossEntropyLoss(weight=weight,reduction="sum")
+    def forward(self, input, target):
+        # first = 0  # 第一项
+        # second = 0  # 第二项
+        # for i in range(target.size(0)):
+        #     first += -input[i][target[i]] * self.weight[target[i]]
+        #     tempSum = 0
+        #     for j in range(input.size(1)):
+        #         tempSum += torch.exp(input[i][j])
+        #     second += torch.log(tempSum) * self.weight[target[i]]
+        # res = (first + second)/target.size(0)
+
+        res = self.lossfun(input,target)
+        return res/input.size(0)
+
+
+def create_CE():
+    cls_num_list = [118037, 118037, 69007, 48582, 32770, 24470, 20759, 13047, 12215, 11482, 8411, 5355, 4939, 4732,
+                    4507, 3808, 2496, 2109, 1705, 1586, 1322, 1277, 1116, 1026, 907, 807, 779, 702, 679, 652, 641, 580,
+                    512, 511, 493, 485, 435, 369, 343, 327, 289, 265, 263, 224, 198, 172, 153, 134, 128, 49, 5]
+
+
+    per_cls_weights = []
+
+
+    for i in range(len(cls_num_list)):
+        if i<25:
+            per_cls_weights.append(cls_num_list[25]/cls_num_list[i])
+        else:
+            per_cls_weights.append(1)
+
+    # beta = 0.9999
+    # effective_num = 1.0 - np.power(beta, cls_num_list)
+    # per_cls_weights = (1.0 - beta) / np.array(effective_num)
+    # per_cls_weights = per_cls_weights / np.sum(per_cls_weights) * len(cls_num_list)
+    #
+    # per_cls_weights = per_cls_weights.tolist()
+
+
+    per_cls_weights = torch.FloatTensor(per_cls_weights).cuda()
+    return CE(per_cls_weights)
+
+
 def choose_rel_loss():
-    return create_CBLoss()
+    return nn.CrossEntropyLoss()
